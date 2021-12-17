@@ -31,9 +31,14 @@ namespace Training.WebAPI
 
         public void ConfigureServices(IServiceCollection services)
         {
+            var connectionString = Configuration.GetConnectionString("DbConnection");
+
             services.AddLogging(loggingBuilder => {
                 loggingBuilder.AddFile("app.log", append: true);
             });
+
+            services.AddAuthentication(AUTH_SCHEMA)
+                .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>(AUTH_SCHEMA, null);
 
             services.AddControllers();
             services.AddSwaggerGen(c =>
@@ -41,18 +46,20 @@ namespace Training.WebAPI
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "Training.WebAPI", Version = "v1" });
             });
 
-            services.AddAuthentication(AUTH_SCHEMA)
-                .AddScheme<AuthenticationSchemeOptions, BasicAuthenticationHandler>(AUTH_SCHEMA, null);
+            services.AddTransient<ClientActionInvokedMiddleware>();
+            services.AddTransient<RequestCultureMiddleware>();
 
             services.AddTransient<ICustomDateTimeProvider, CustomDateTimeProvider>();
-            services.AddTransient<IBookService, BookService>();
-            services.AddSingleton<IBookRepository, BookRepository>();
-            services.AddTransient<IReservationService, ReservationService>();
-            services.AddSingleton<IReservationRepository, ReservationRepository>();
-            services.AddSingleton<IUserRepository, UserRepository>();
 
-            services.AddScoped<ClientActionInvokedMiddleware>();
-            services.AddScoped<RequestCultureMiddleware>();
+            services.AddTransient<IBookService, BookService>();
+            services.AddTransient<IReservationService, ReservationService>();            
+
+            services.AddScoped(x => new TrainingDbContext(connectionString));
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+            services.AddTransient<IBookRepository, BookRepository>();
+            services.AddTransient<IReservationRepository, ReservationRepository>();
+            services.AddTransient<IUserRepository, UserRepository>();
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
